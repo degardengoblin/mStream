@@ -31,3 +31,4 @@ frp/*.ini
 dist/*
 
 .env
+.env.*
