@@ -25,6 +25,7 @@ import * as dbManager from './db/manager.js';
 import * as syncthing from './state/syncthing.js';
 import * as federationApi from './api/federation.js';
 import * as scannerApi from './api/scanner.js';
+import * as artistImages from './db/artist-images.js';
 import WebError from './util/web-error.js';
 import { sanitizeFilename } from './util/validation.js';
 
@@ -83,6 +84,7 @@ export async function serveIt(configFile) {
 
   // Setup DB
   dbManager.initLoki();
+  artistImages.init(config.program.storage.albumArtDirectory);
 
   // remove trailing slashes, needed for relative URLs on the webapp
   mstream.get('{*path}', (req, res, next) => {
@@ -192,6 +194,15 @@ export async function serveIt(configFile) {
     }
 
     res.sendFile(path.join(config.program.storage.albumArtDirectory, filename));
+  });
+
+
+  // artist image endpoint
+  mstream.get('/artist-image/:name', (req, res) => {
+    const artistName = decodeURIComponent(req.params.name);
+    const filename = artistImages.getArtistImageFilename(artistName);
+    if (!filename) return res.status(404).json({ error: 'Not found' });
+    res.sendFile(path.join(config.program.storage.albumArtDirectory, 'artists', filename));
   });
 
   // TODO: determine if user has access to the exact file

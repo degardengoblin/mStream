@@ -1,5 +1,6 @@
 import * as db from '../db/manager.js';
 import * as config from '../state/config.js';
+import * as artistImages from '../db/artist-images.js';
 
 export function setup(mstream) {
   mstream.all('/api/v1/scanner/{*path}', (req, res, next) => {
@@ -42,6 +43,11 @@ export function setup(mstream) {
 
     db.saveFilesDB();
     res.json({});
+
+    // Kick off artist image fetching in the background (non-blocking)
+    const files = db.getFileCollection().find({ 'vpath': { '$eq': req.body.vpath } });
+    const artists = [...new Set(files.map(f => f.artist).filter(Boolean))];
+    artistImages.fetchArtistImages(artists).catch(() => {});
   });
 
   let saveCounter = 0;
