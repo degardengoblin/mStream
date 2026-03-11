@@ -487,4 +487,5 @@ export function setup(mstream) {
     await admin.setSSL(path.resolve(req.body.cert), path.resolve(req.body.key));
     res.json({});
   });
+
 }

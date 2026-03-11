@@ -25,6 +25,15 @@ export function getArtistImageFilename(artistName) {
   return cache[artistName] || null;
 }
 
+export async function retryMissingArtistImages() {
+  if (!initialized) return 0;
+  const missing = Object.keys(cache).filter(name => cache[name] === null);
+  for (const name of missing) delete cache[name];
+  saveCache();
+  fetchArtistImages(missing).catch(() => {});
+  return missing.length;
+}
+
 export async function fetchArtistImages(artists) {
   if (!initialized) return;
 
@@ -46,6 +55,21 @@ export async function fetchArtistImages(artists) {
   }
 }
 
+function normalizeName(name) {
+  return name
+    .toLowerCase()
+    .replace(/^the\s+/, '')
+    .replace(/[^\w\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function artistNamesMatch(query, result) {
+  const a = normalizeName(query);
+  const b = normalizeName(result);
+  return a === b || a.includes(b) || b.includes(a);
+}
+
 function getDeezerImageUrl(artistName) {
   return new Promise((resolve) => {
     const query = encodeURIComponent(artistName);
@@ -61,7 +85,9 @@ function getDeezerImageUrl(artistName) {
       res.on('end', () => {
         try {
           const parsed = JSON.parse(data);
-          resolve(parsed.data?.[0]?.picture_xl || null);
+          const hit = parsed.data?.[0];
+          if (!hit || !artistNamesMatch(artistName, hit.name)) return resolve(null);
+          resolve(hit.picture_xl || null);
         } catch { resolve(null); }
       });
     });

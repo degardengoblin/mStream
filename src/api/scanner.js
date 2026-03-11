@@ -47,7 +47,10 @@ export function setup(mstream) {
     // Kick off artist image fetching in the background (non-blocking)
     const files = db.getFileCollection().find({ 'vpath': { '$eq': req.body.vpath } });
     const artists = [...new Set(files.map(f => f.artist).filter(Boolean))];
-    artistImages.fetchArtistImages(artists).catch(() => {});
+    artistImages.fetchArtistImages(artists)
+      .catch(() => {})
+      .then(() => artistImages.retryMissingArtistImages())
+      .catch(() => {});
   });
 
   let saveCounter = 0;
