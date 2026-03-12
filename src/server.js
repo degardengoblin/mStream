@@ -26,6 +26,7 @@ import * as syncthing from './state/syncthing.js';
 import * as federationApi from './api/federation.js';
 import * as scannerApi from './api/scanner.js';
 import * as artistImages from './db/artist-images.js';
+import * as albumArt from './db/album-art.js';
 import WebError from './util/web-error.js';
 import { sanitizeFilename } from './util/validation.js';
 
@@ -85,6 +86,7 @@ export async function serveIt(configFile) {
   // Setup DB
   dbManager.initLoki();
   artistImages.init(config.program.storage.albumArtDirectory);
+  albumArt.init(config.program.storage.albumArtDirectory);
 
   // remove trailing slashes, needed for relative URLs on the webapp
   mstream.get('{*path}', (req, res, next) => {

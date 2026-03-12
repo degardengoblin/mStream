@@ -1,6 +1,7 @@
 import * as db from '../db/manager.js';
 import * as config from '../state/config.js';
 import * as artistImages from '../db/artist-images.js';
+import * as albumArt from '../db/album-art.js';
 
 export function setup(mstream) {
   mstream.all('/api/v1/scanner/{*path}', (req, res, next) => {
@@ -50,6 +51,10 @@ export function setup(mstream) {
     artistImages.fetchArtistImages(artists)
       .catch(() => {})
       .then(() => artistImages.retryMissingArtistImages())
+      .catch(() => {})
+      .then(() => albumArt.fetchMissingAlbumArt())
+      .catch(() => {})
+      .then(() => albumArt.retryMissingAlbumArt())
       .catch(() => {});
   });
 
