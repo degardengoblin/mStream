@@ -55,27 +55,74 @@ export async function fetchArtistImages(artists) {
   }
 }
 
-function normalizeName(name) {
+function normalizeArtistName(name) {
+  // Comma-article inversion: "Beatles, The" → "The Beatles"
+  name = name.replace(/^(.+),\s*(the|a|an)$/i, '$2 $1');
+  // NFD decompose + strip combining marks (diacritics → ASCII base letter)
+  name = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return name
     .toLowerCase()
-    .replace(/^the\s+/, '')
-    .replace(/[^\w\s]/g, '')
+    .replace(/\s*&\s*/g, ' and ')  // & → and
+    .replace(/^(the|a|an)\s+/, '') // strip leading articles
+    .replace(/[^\w\s]/g, '')       // remove remaining punctuation
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function artistNamesMatch(query, result) {
-  const a = normalizeName(query);
-  const b = normalizeName(result);
-  return a === b || a.includes(b) || b.includes(a);
+// Jaro-Winkler similarity (0.0–1.0)
+function jaroWinkler(a, b) {
+  if (a === b) return 1;
+  const la = a.length, lb = b.length;
+  if (la === 0 || lb === 0) return 0;
+  const matchDist = Math.max(Math.floor(Math.max(la, lb) / 2) - 1, 0);
+  const aMatched = new Array(la).fill(false);
+  const bMatched = new Array(lb).fill(false);
+  let matches = 0, transpositions = 0;
+  for (let i = 0; i < la; i++) {
+    const start = Math.max(0, i - matchDist);
+    const end = Math.min(i + matchDist + 1, lb);
+    for (let j = start; j < end; j++) {
+      if (bMatched[j] || a[i] !== b[j]) continue;
+      aMatched[i] = bMatched[j] = true;
+      matches++;
+      break;
+    }
+  }
+  if (matches === 0) return 0;
+  let k = 0;
+  for (let i = 0; i < la; i++) {
+    if (!aMatched[i]) continue;
+    while (!bMatched[k]) k++;
+    if (a[i] !== b[k]) transpositions++;
+    k++;
+  }
+  const jaro = (matches / la + matches / lb + (matches - transpositions / 2) / matches) / 3;
+  let prefix = 0;
+  for (let i = 0; i < Math.min(4, la, lb); i++) {
+    if (a[i] !== b[i]) break;
+    prefix++;
+  }
+  return jaro + prefix * 0.1 * (1 - jaro);
 }
 
-function getDeezerImageUrl(artistName) {
+const MATCH_THRESHOLD = 0.85;
+
+function bestCandidate(artistName, candidates) {
+  const normalizedQuery = normalizeArtistName(artistName);
+  let best = null, bestScore = 0;
+  for (const hit of candidates) {
+    if (!hit?.name) continue;
+    const score = jaroWinkler(normalizedQuery, normalizeArtistName(hit.name));
+    if (score > bestScore) { bestScore = score; best = hit; }
+  }
+  return bestScore >= MATCH_THRESHOLD ? best : null;
+}
+
+function deezerSearch(query, limit) {
   return new Promise((resolve) => {
-    const query = encodeURIComponent(artistName);
     const options = {
       hostname: 'api.deezer.com',
-      path: `/search/artist?q=${query}&limit=1`,
+      path: `/search/artist?q=${encodeURIComponent(query)}&limit=${limit}`,
       headers: { 'User-Agent': 'mStream/1.0' },
       timeout: 8000
     };
@@ -83,17 +130,29 @@ function getDeezerImageUrl(artistName) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          const hit = parsed.data?.[0];
-          if (!hit || !artistNamesMatch(artistName, hit.name)) return resolve(null);
-          resolve(hit.picture_xl || null);
-        } catch { resolve(null); }
+        try { resolve(JSON.parse(data).data || []); } catch { resolve([]); }
       });
     });
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve([]));
+    req.on('timeout', () => { req.destroy(); resolve([]); });
   });
+}
+
+async function getDeezerImageUrl(artistName) {
+  // Primary search: full artist name, top 5 candidates
+  let candidates = await deezerSearch(artistName, 5);
+  let hit = bestCandidate(artistName, candidates);
+
+  // Fallback: first 2 significant words if full-name search found nothing
+  if (!hit) {
+    const words = normalizeArtistName(artistName).split(' ').filter(Boolean);
+    if (words.length > 2) {
+      candidates = await deezerSearch(words.slice(0, 2).join(' '), 5);
+      hit = bestCandidate(artistName, candidates);
+    }
+  }
+
+  return hit?.picture_xl || null;
 }
 
 function downloadImage(url, artistName) {
