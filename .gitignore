@@ -32,3 +32,6 @@ dist/*
 
 .env
 .env.*
+
+# Working docs — context for AI sessions, not version-controlled history
+docs/
