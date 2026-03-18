@@ -162,6 +162,9 @@ export async function serveIt(configFile) {
   remoteApi.setupBeforeAuth(mstream, server);
   await sharedApi.setupBeforeSecurity(mstream);
 
+  // Public ping — used by Android app for reachability checks
+  mstream.get('/api/v1/ping', (req, res) => res.json({ status: 'ok' }));
+
   // Everything below this line requires authentication
   authApi.setup(mstream);
 
