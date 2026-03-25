@@ -25,6 +25,7 @@ import * as dbManager from './db/manager.js';
 import * as syncthing from './state/syncthing.js';
 import * as federationApi from './api/federation.js';
 import * as scannerApi from './api/scanner.js';
+import * as favoritesApi from './api/favorites.js';
 import * as artistImages from './db/artist-images.js';
 import * as albumArt from './db/album-art.js';
 import WebError from './util/web-error.js';
@@ -178,6 +179,7 @@ export async function serveIt(configFile) {
   scrobblerApi.setup(mstream);
   remoteApi.setupAfterAuth(mstream, server);
   sharedApi.setupAfterSecurity(mstream);
+  favoritesApi.setup(mstream);
   syncthing.setup();
   federationApi.setup(mstream);
 

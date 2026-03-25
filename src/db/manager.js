@@ -15,6 +15,7 @@ let shareDB;
 let fileCollection;
 let playlistCollection;
 let userMetadataCollection;
+let favoritesCollection;
 let shareCollection;
 
 // Timer for clearing shared playlists
@@ -59,6 +60,10 @@ export function getShareCollection() {
   return shareCollection;
 }
 
+export function getFavoritesCollection() {
+  return favoritesCollection;
+}
+
 export function initLoki() {
   shareDB = new loki(path.join(config.program.storage.dbDirectory, shareDbName));
   filesDB = new loki(path.join(config.program.storage.dbDirectory, filesDbName));
@@ -93,6 +98,12 @@ export function initLoki() {
     userMetadataCollection = userDataDb.getCollection('user-metadata');
     if (!userMetadataCollection) {
       userMetadataCollection = userDataDb.addCollection("user-metadata");
+    }
+
+    // Initialize favorites collection (for album and artist favorites)
+    favoritesCollection = userDataDb.getCollection('favorites');
+    if (!favoritesCollection) {
+      favoritesCollection = userDataDb.addCollection("favorites");
     }
   });
 
