@@ -147,6 +147,40 @@ export function setup(mstream) {
     res.json({});
   });
 
+  mstream.post('/api/v1/playlist/rename', (req, res) => {
+    const schema = Joi.object({
+      oldName: Joi.string().required(),
+      newName: Joi.string().required()
+    });
+    joiValidate(schema, req.body);
+
+    if (!db.getPlaylistCollection()) { throw new Error('DB Error'); }
+
+    // Check new name doesn't already exist for this user
+    const existing = db.getPlaylistCollection().findOne({
+      '$and': [
+        { 'user': { '$eq': req.user.username } },
+        { 'name': { '$eq': req.body.newName } }
+      ]
+    });
+    if (existing !== null) {
+      return res.status(400).json({ error: 'Playlist name already in use' });
+    }
+
+    db.getPlaylistCollection().findAndUpdate(
+      {
+        '$and': [
+          { 'user': { '$eq': req.user.username } },
+          { 'name': { '$eq': req.body.oldName } }
+        ]
+      },
+      (row) => { row.name = req.body.newName; }
+    );
+
+    db.saveUserDB();
+    res.json({});
+  });
+
   mstream.get('/api/v1/playlist/getall', (req, res) => {
     res.json(getPlaylists(req.user.username));
   });
