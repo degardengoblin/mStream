@@ -104,7 +104,6 @@ export function setup(mstream) {
   mstream.post('/api/v1/db/metadata/batch', (req, res) => {
     const returnThis = {};
     req.body.forEach(f => {
-      console.log(f)
       returnThis[f] = pullMetaData(f, req.user);
     });
 

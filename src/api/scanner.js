@@ -1,3 +1,4 @@
+import winston from 'winston';
 import * as db from '../db/manager.js';
 import * as config from '../state/config.js';
 import * as artistImages from '../db/artist-images.js';
@@ -49,13 +50,13 @@ export function setup(mstream) {
     const files = db.getFileCollection().find({ 'vpath': { '$eq': req.body.vpath } });
     const artists = [...new Set(files.map(f => f.artist).filter(Boolean))];
     artistImages.fetchArtistImages(artists)
-      .catch(() => {})
+      .catch(err => winston.error('fetchArtistImages failed', { stack: err }))
       .then(() => artistImages.retryMissingArtistImages())
-      .catch(() => {})
+      .catch(err => winston.error('retryMissingArtistImages failed', { stack: err }))
       .then(() => albumArt.fetchMissingAlbumArt())
-      .catch(() => {})
+      .catch(err => winston.error('fetchMissingAlbumArt failed', { stack: err }))
       .then(() => albumArt.retryMissingAlbumArt())
-      .catch(() => {});
+      .catch(err => winston.error('retryMissingAlbumArt failed', { stack: err }));
   });
 
   let saveCounter = 0;

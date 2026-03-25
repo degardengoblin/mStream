@@ -73,7 +73,12 @@ export function setup(mstream) {
   });
 
   mstream.post('/api/v1/download/zip', (req, res) => {
-    const fileArray = JSON.parse(req.body.fileArray);
+    let fileArray;
+    try {
+      fileArray = JSON.parse(req.body.fileArray);
+    } catch (_err) {
+      return res.status(400).json({ error: 'Invalid fileArray' });
+    }
     download(req, res, fileArray).catch(err => {
       throw err;
     });
